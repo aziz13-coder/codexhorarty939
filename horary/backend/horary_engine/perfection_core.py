@@ -15,6 +15,7 @@ Key Features:
 
 from __future__ import annotations
 from typing import Dict, List, Optional, Tuple, Set, Any, NamedTuple
+from types import SimpleNamespace
 from dataclasses import dataclass, field
 from enum import Enum
 import math
@@ -351,7 +352,7 @@ class EventDetector:
         
         return events
     
-    def _detect_translation_events(self, chart: HoraryChart, querent: Planet, quesited: Planet, 
+    def _detect_translation_events(self, chart: HoraryChart, querent: Planet, quesited: Planet,
                                  window_days: int) -> List[PerfectionEvent]:
         """Detect translation of light events with strict rules"""
         print(f"   TRANSLATION DEBUG:")
@@ -359,6 +360,12 @@ class EventDetector:
         if querent == quesited:
             print(f"     Skipped: Same significators")
             return events
+
+        t_cfg = getattr(self.config, "translation", SimpleNamespace())
+        require_rec = getattr(t_cfg, "require_reception", False)
+        require_seq = getattr(t_cfg, "require_proper_sequence", True)
+        max_sep_deg = float(getattr(t_cfg, "max_separation_deg", float("inf")))
+        max_app_deg = float(getattr(t_cfg, "max_application_deg", float("inf")))
         
         for translator in [Planet.MOON, Planet.MERCURY, Planet.VENUS, Planet.MARS, Planet.JUPITER, Planet.SATURN]:
             print(f"     Checking translator: {translator.value}")
@@ -376,8 +383,14 @@ class EventDetector:
                 app_event = self._find_applying_aspect(chart, translator, querent, window_days)
                 
             if sep_event and app_event:
-                # Ensure proper sequence (separation before application)
-                if sep_event['timing'] < app_event['timing']:
+                if (
+                    sep_event.get('degrees_from_exact', 0.0) > max_sep_deg or
+                    app_event.get('degrees_to_exact', 0.0) > max_app_deg
+                ):
+                    continue
+
+                if require_seq and not (sep_event['timing'] < app_event['timing']):
+                    continue
                     
                     # Classical speed rule: translator must be faster than BOTH significators
                     tr_pos = chart.planets.get(translator)
@@ -402,10 +415,13 @@ class EventDetector:
                     earliest_next = self._find_earliest_application(
                         chart, translator, window_days, exclude={sep_event['target']}
                     )
-                    if (not earliest_next or
-                        earliest_next['target'] != receiver or
-                        abs(earliest_next['timing'] - app_event['timing']) > EPS):
-                        continue
+                    if require_seq:
+                        if (
+                            not earliest_next or
+                            earliest_next['target'] != receiver or
+                            abs(earliest_next['timing'] - app_event['timing']) > EPS
+                        ):
+                            continue
 
                     # Abscission guard: someone else perfects with the receiver before the second leg
                     t_complete = app_event['timing']
@@ -434,9 +450,19 @@ class EventDetector:
                     # Only add translation if no abscission found
                     if not abscission_found:
                         reception_data = self._get_cached_reception(chart, querent, quesited)
-                        # Per-leg receptions
                         recept_sep = self._get_cached_reception(chart, translator, sep_event['target'])
                         recept_app = self._get_cached_reception(chart, translator, app_event['target'])
+
+                        if require_rec:
+                            has_rec = (
+                                recept_sep.get('mutual') not in (None, 'none') or
+                                recept_app.get('mutual') not in (None, 'none') or
+                                recept_sep.get('one_way') or
+                                recept_app.get('one_way')
+                            )
+                            if not has_rec:
+                                continue
+
                         hard_second_leg = app_event['aspect'] in [Aspect.SQUARE, Aspect.OPPOSITION]
                         anti_sep = (recept_sep.get('type') == 'detriment_or_fall_against_translator')
 
@@ -465,7 +491,7 @@ class EventDetector:
                             reception_data=reception_data,
                             challenges=challenges,
                             quality_tags=quality_tags,
-                            metadata={'separation': sep_event, 'application': app_event}
+                            metadata={'separation': sep_event, 'application': app_event},
                         ))
         
         return events
@@ -1016,19 +1042,25 @@ class EventDetector:
             
         return int(base_confidence)
     
-    def _find_applying_aspect(self, chart: HoraryChart, planet1: Planet, planet2: Planet, 
+    def _find_applying_aspect(self, chart: HoraryChart, planet1: Planet, planet2: Planet,
                             window_days: int) -> Optional[Dict]:
         """Find earliest applying aspect between two planets within window"""
         best = None
         for aspect in [Aspect.CONJUNCTION, Aspect.SEXTILE, Aspect.SQUARE, Aspect.TRINE, Aspect.OPPOSITION]:
             timing = self.timing.when_exact_in_days(planet1, planet2, aspect, chart)
             if timing and 0 < timing <= window_days:
+                rel_speed = (
+                    self.timing._get_daily_motion(chart.planets.get(planet2))
+                    - self.timing._get_daily_motion(chart.planets.get(planet1))
+                )
+                degrees_to_exact = abs(rel_speed * timing)
                 if (best is None) or (timing < best['timing']):
                     best = {
                         'aspect': aspect,
                         'timing': float(timing),
                         'applying': True,
-                        'target': planet2
+                        'target': planet2,
+                        'degrees_to_exact': float(degrees_to_exact),
                     }
         return best
     
@@ -1069,7 +1101,13 @@ class EventDetector:
                     dt = ((target - delta) % 360.0) / (-v_rel)
 
                 if 0.0 < dt <= float(window_days):
-                    cand = {'aspect': aspect, 'timing': -float(dt), 'separating': True, 'target': planet2}
+                    cand = {
+                        'aspect': aspect,
+                        'timing': -float(dt),
+                        'separating': True,
+                        'target': planet2,
+                        'degrees_from_exact': float(abs(v_rel * dt)),
+                    }
                     if (best is None) or (dt < -best['timing']):  # smallest look-back
                         best = cand
 
