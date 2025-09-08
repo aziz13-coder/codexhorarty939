@@ -22,7 +22,7 @@ spec.loader.exec_module(perfection_core)
 EventDetector = perfection_core.EventDetector
 from models import Planet, Aspect
 
-def setup_env(monkeypatch, collector_dignity, require=True):
+def setup_env(monkeypatch, collector_dignity, require=True, app_deg=5.0):
     collector = Planet.JUPITER
     querent = Planet.MERCURY
     quesited = Planet.VENUS
@@ -31,17 +31,20 @@ def setup_env(monkeypatch, collector_dignity, require=True):
         'aspect': Aspect.TRINE,
         'timing': 1.0,
         'target': collector,
+        'degrees_to_exact': app_deg,
     }
 
     def fake_is_valid_collector(self, chart, col, q, e):
         return True
 
-    def fake_find_applying_aspect(self, chart, p1, p2, window_days):
+    def fake_find_applying_aspect(self, chart, p1, p2, window_days, max_degree=None):
         if (p1, p2) in ((querent, collector), (quesited, collector)):
+            if max_degree is not None and app_event['degrees_to_exact'] > max_degree:
+                return None
             return app_event
         return None
 
-    def fake_find_earliest_application(self, chart, planet, window_days, exclude=None):
+    def fake_find_earliest_application(self, chart, planet, window_days, exclude=None, max_degree=None):
         if planet in (querent, quesited):
             return {'target': collector, 'timing': 1.0}
         return None
@@ -57,6 +60,7 @@ def setup_env(monkeypatch, collector_dignity, require=True):
     ed = EventDetector()
     ed.config.collection.require_collector_dignity = require
     ed.config.collection.minimum_dignity_score = 0
+    ed.config.collection.max_application_deg = 15.0
 
     chart = SimpleNamespace(planets={
         collector: SimpleNamespace(dignity_score=collector_dignity),
@@ -84,4 +88,13 @@ def test_collection_dignity_downgrade(monkeypatch):
     evt = events[0]
     assert not evt.favorable
     assert 'collector_poor_dignity' in evt.challenges
+
+
+@pytest.mark.parametrize('app_deg, expected', [(5.0, 1), (20.0, 0)])
+def test_collection_max_application_deg(monkeypatch, app_deg, expected):
+    ed, chart, q, e = setup_env(
+        monkeypatch, collector_dignity=2, require=True, app_deg=app_deg
+    )
+    events = ed._detect_collection_events(chart, q, e, 30)
+    assert len(events) == expected
 

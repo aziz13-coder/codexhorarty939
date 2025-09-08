@@ -374,105 +374,113 @@ class EventDetector:
                 continue
                 
             # STRICT TRANSLATION RULE: Must separate from one and apply to other
-            sep_event = self._find_separating_aspect(chart, translator, querent, window_days)
-            app_event = self._find_applying_aspect(chart, translator, quesited, window_days)
-            
+            sep_event = self._find_separating_aspect(
+                chart, translator, querent, window_days, max_degree=max_sep_deg
+            )
+            app_event = self._find_applying_aspect(
+                chart, translator, quesited, window_days, max_degree=max_app_deg
+            )
+
             if not sep_event or not app_event:
                 # Try reverse direction
-                sep_event = self._find_separating_aspect(chart, translator, quesited, window_days)
-                app_event = self._find_applying_aspect(chart, translator, querent, window_days)
-                
-            if sep_event and app_event:
-                if (
-                    sep_event.get('degrees_from_exact', 0.0) > max_sep_deg or
-                    app_event.get('degrees_to_exact', 0.0) > max_app_deg
-                ):
-                    continue
+                sep_event = self._find_separating_aspect(
+                    chart, translator, quesited, window_days, max_degree=max_sep_deg
+                )
+                app_event = self._find_applying_aspect(
+                    chart, translator, querent, window_days, max_degree=max_app_deg
+                )
 
+            if sep_event and app_event:
                 if require_seq and not (sep_event['timing'] < app_event['timing']):
                     continue
-                    
-                    # Classical speed rule: translator must be faster than BOTH significators
-                    tr_pos = chart.planets.get(translator)
-                    q_pos = chart.planets.get(querent)
-                    qe_pos = chart.planets.get(quesited)
-                    tr_sp = abs(self.timing._get_daily_motion(tr_pos))
-                    q_sp = abs(self.timing._get_daily_motion(q_pos))
-                    qe_sp = abs(self.timing._get_daily_motion(qe_pos))
-                    if getattr(self.config.translation, "require_speed_advantage", True):
-                        if not (tr_sp > q_sp and tr_sp > qe_sp):
-                            continue
-                    
-                    # --- NEW: recency bound for the separation leg (avoid stale separations) ---
-                    max_lookback = getattr(self.config, "translation_max_lookback_days", 7)
-                    if (-sep_event['timing']) > float(max_lookback):
-                        # Separation too far in the past to plausibly "carry light"
+
+                # Classical speed rule: translator must be faster than BOTH significators
+                tr_pos = chart.planets.get(translator)
+                q_pos = chart.planets.get(querent)
+                qe_pos = chart.planets.get(quesited)
+                tr_sp = abs(self.timing._get_daily_motion(tr_pos))
+                q_sp = abs(self.timing._get_daily_motion(q_pos))
+                qe_sp = abs(self.timing._get_daily_motion(qe_pos))
+                if getattr(self.config.translation, "require_speed_advantage", True):
+                    if not (tr_sp > q_sp and tr_sp > qe_sp):
                         continue
 
-                    # --- NEW: the mediator's NEXT application must be to the intended receiver ---
-                    # If the mediator applies to anyone else first, no translation.
-                    receiver = app_event.get('target', quesited)
-                    earliest_next = self._find_earliest_application(
-                        chart, translator, window_days, exclude={sep_event['target']}
+                # --- NEW: recency bound for the separation leg (avoid stale separations) ---
+                max_lookback = getattr(self.config, "translation_max_lookback_days", 7)
+                if (-sep_event['timing']) > float(max_lookback):
+                    # Separation too far in the past to plausibly "carry light"
+                    continue
+
+                # --- NEW: the mediator's NEXT application must be to the intended receiver ---
+                # If the mediator applies to anyone else first, no translation.
+                receiver = app_event.get('target', quesited)
+                earliest_next = self._find_earliest_application(
+                    chart,
+                    translator,
+                    window_days,
+                    exclude={sep_event['target']},
+                    max_degree=max_app_deg,
+                )
+                if require_seq:
+                    if (
+                        not earliest_next or
+                        earliest_next['target'] != receiver or
+                        abs(earliest_next['timing'] - app_event['timing']) > EPS
+                    ):
+                        continue
+
+                # Abscission guard: someone else perfects with the receiver before the second leg
+                t_complete = app_event['timing']
+                abscission_found = False
+
+                for other in [Planet.SUN, Planet.MOON, Planet.MERCURY, Planet.VENUS, Planet.MARS, Planet.JUPITER, Planet.SATURN]:
+                    if other in (translator, querent, quesited):
+                        continue
+                    other_app = self._find_applying_aspect(
+                        chart, other, receiver, window_days, max_degree=max_app_deg
                     )
-                    if require_seq:
-                        if (
-                            not earliest_next or
-                            earliest_next['target'] != receiver or
-                            abs(earliest_next['timing'] - app_event['timing']) > EPS
-                        ):
+                    if other_app and 0 < other_app['timing'] < t_complete:
+                        # Emit ABSCISSION denial instead of translation
+                        events.append(PerfectionEvent(
+                            event_type=EventType.ABSCISSION,
+                            primary_pair=(querent, quesited),
+                            aspect=other_app['aspect'],
+                            mediator=other,
+                            exact_in_days=other_app['timing'],
+                            favorable=False,
+                            confidence=getattr(self.config.confidence.denial, "abscission", 70),
+                            reason=f"Abscission: {other.value} perfects with {receiver.value} before translation by {translator.value} completes",
+                            metadata={'receiver': receiver, 'interceptor': other, 'abscises_translator': translator}
+                        ))
+                        abscission_found = True
+                        break
+
+                # Only add translation if no abscission found
+                if not abscission_found:
+                    reception_data = self._get_cached_reception(chart, querent, quesited)
+                    recept_sep = self._get_cached_reception(chart, translator, sep_event['target'])
+                    recept_app = self._get_cached_reception(chart, translator, app_event['target'])
+
+                    if require_rec:
+                        has_rec = (
+                            recept_sep.get('mutual') not in (None, 'none') or
+                            recept_app.get('mutual') not in (None, 'none') or
+                            recept_sep.get('one_way') or
+                            recept_app.get('one_way')
+                        )
+                        if not has_rec:
                             continue
 
-                    # Abscission guard: someone else perfects with the receiver before the second leg
-                    t_complete = app_event['timing']
-                    abscission_found = False
-                    
-                    for other in [Planet.SUN, Planet.MOON, Planet.MERCURY, Planet.VENUS, Planet.MARS, Planet.JUPITER, Planet.SATURN]:
-                        if other in (translator, querent, quesited):
-                            continue
-                        other_app = self._find_applying_aspect(chart, other, receiver, window_days)
-                        if other_app and 0 < other_app['timing'] < t_complete:
-                            # Emit ABSCISSION denial instead of translation
-                            events.append(PerfectionEvent(
-                                event_type=EventType.ABSCISSION,
-                                primary_pair=(querent, quesited),
-                                aspect=other_app['aspect'],
-                                mediator=other,
-                                exact_in_days=other_app['timing'],
-                                favorable=False,
-                                confidence=getattr(self.config.confidence.denial, "abscission", 70),
-                                reason=f"Abscission: {other.value} perfects with {receiver.value} before translation by {translator.value} completes",
-                                metadata={'receiver': receiver, 'interceptor': other, 'abscises_translator': translator}
-                            ))
-                            abscission_found = True
-                            break
-                    
-                    # Only add translation if no abscission found
-                    if not abscission_found:
-                        reception_data = self._get_cached_reception(chart, querent, quesited)
-                        recept_sep = self._get_cached_reception(chart, translator, sep_event['target'])
-                        recept_app = self._get_cached_reception(chart, translator, app_event['target'])
+                    hard_second_leg = app_event['aspect'] in [Aspect.SQUARE, Aspect.OPPOSITION]
+                    anti_sep = (recept_sep.get('type') == 'detriment_or_fall_against_translator')
 
-                        if require_rec:
-                            has_rec = (
-                                recept_sep.get('mutual') not in (None, 'none') or
-                                recept_app.get('mutual') not in (None, 'none') or
-                                recept_sep.get('one_way') or
-                                recept_app.get('one_way')
-                            )
-                            if not has_rec:
-                                continue
-
-                        hard_second_leg = app_event['aspect'] in [Aspect.SQUARE, Aspect.OPPOSITION]
-                        anti_sep = (recept_sep.get('type') == 'detriment_or_fall_against_translator')
-
-                        favorable = True
-                        challenges: List[str] = []
-                        quality_tags: List[str] = ["translation"]
-                        if hard_second_leg and not recept_app.get('mutual') and not recept_app.get('one_way'):
-                            favorable = False
-                            challenges.append("hard_second_leg_no_reception")
-                            quality_tags.append("hostile")
+                    favorable = True
+                    challenges: List[str] = []
+                    quality_tags: List[str] = ["translation"]
+                    if hard_second_leg and not recept_app.get('mutual') and not recept_app.get('one_way'):
+                        favorable = False
+                        challenges.append("hard_second_leg_no_reception")
+                        quality_tags.append("hostile")
                         if anti_sep:
                             challenges.append("anti_reception_first_leg")
 
@@ -501,7 +509,8 @@ class EventDetector:
         chart: HoraryChart,
         planet: Planet,
         window_days: int,
-        exclude: Set[Planet] | None = None
+        exclude: Set[Planet] | None = None,
+        max_degree: float | None = None,
     ) -> Optional[Dict]:
         """
         Find the very next (earliest) applying aspect from `planet` to any classical planet,
@@ -513,7 +522,9 @@ class EventDetector:
         for other in [Planet.SUN, Planet.MOON, Planet.MERCURY, Planet.VENUS, Planet.MARS, Planet.JUPITER, Planet.SATURN]:
             if other == planet or other in exclude:
                 continue
-            cand = self._find_applying_aspect(chart, planet, other, window_days)
+            cand = self._find_applying_aspect(
+                chart, planet, other, window_days, max_degree=max_degree
+            )
             if cand and (best is None or cand['timing'] < best['timing']):
                 best = {'target': other, 'aspect': cand['aspect'], 'timing': cand['timing']}
         return best
@@ -545,7 +556,10 @@ class EventDetector:
         events = []
         if querent == quesited:
             return events
-        
+
+        c_cfg = getattr(self.config, "collection", SimpleNamespace())
+        max_app_deg = float(getattr(c_cfg, "max_application_deg", float("inf")))
+
         for collector in [Planet.SUN, Planet.MOON, Planet.MERCURY, Planet.VENUS, Planet.MARS, Planet.JUPITER, Planet.SATURN]:
             if collector in (querent, quesited):
                 continue
@@ -555,8 +569,12 @@ class EventDetector:
                 continue
                 
             # Both significators must apply to collector
-            querent_app = self._find_applying_aspect(chart, querent, collector, window_days)
-            quesited_app = self._find_applying_aspect(chart, quesited, collector, window_days)
+            querent_app = self._find_applying_aspect(
+                chart, querent, collector, window_days, max_degree=max_app_deg
+            )
+            quesited_app = self._find_applying_aspect(
+                chart, quesited, collector, window_days, max_degree=max_app_deg
+            )
             
             if querent_app and quesited_app:
                 # Collection time is when the later application completes
@@ -567,7 +585,9 @@ class EventDetector:
                 for other in [Planet.SUN, Planet.MOON, Planet.MERCURY, Planet.VENUS, Planet.MARS, Planet.JUPITER, Planet.SATURN]:
                     if other in (collector, querent, quesited):
                         continue
-                    other_app = self._find_applying_aspect(chart, other, collector, window_days)
+                    other_app = self._find_applying_aspect(
+                        chart, other, collector, window_days, max_degree=max_app_deg
+                    )
                     if other_app and 0 < other_app['timing'] < (collection_time - EPS):
                         events.append(PerfectionEvent(
                             event_type=EventType.ABSCISSION,
@@ -586,8 +606,12 @@ class EventDetector:
                 # Only add collection if no abscission found
                 if not abscission_found:
                     # Next-application for each must be to collector
-                    qa_next = self._find_earliest_application(chart, querent, window_days, exclude=set())
-                    qe_next = self._find_earliest_application(chart, quesited, window_days, exclude=set())
+                    qa_next = self._find_earliest_application(
+                        chart, querent, window_days, exclude=set(), max_degree=max_app_deg
+                    )
+                    qe_next = self._find_earliest_application(
+                        chart, quesited, window_days, exclude=set(), max_degree=max_app_deg
+                    )
                     if not (qa_next and qa_next['target'] == collector and qe_next and qe_next['target'] == collector):
                         continue
 
@@ -1055,8 +1079,14 @@ class EventDetector:
             
         return int(base_confidence)
     
-    def _find_applying_aspect(self, chart: HoraryChart, planet1: Planet, planet2: Planet,
-                            window_days: int) -> Optional[Dict]:
+    def _find_applying_aspect(
+        self,
+        chart: HoraryChart,
+        planet1: Planet,
+        planet2: Planet,
+        window_days: int,
+        max_degree: float | None = None,
+    ) -> Optional[Dict]:
         """Find earliest applying aspect between two planets within window"""
         best = None
         for aspect in [Aspect.CONJUNCTION, Aspect.SEXTILE, Aspect.SQUARE, Aspect.TRINE, Aspect.OPPOSITION]:
@@ -1067,6 +1097,8 @@ class EventDetector:
                     - self.timing._get_daily_motion(chart.planets.get(planet1))
                 )
                 degrees_to_exact = abs(rel_speed * timing)
+                if max_degree is not None and degrees_to_exact > max_degree:
+                    continue
                 if (best is None) or (timing < best['timing']):
                     best = {
                         'aspect': aspect,
@@ -1077,8 +1109,14 @@ class EventDetector:
                     }
         return best
     
-    def _find_separating_aspect(self, chart: HoraryChart, planet1: Planet, planet2: Planet,
-                              window_days: int) -> Optional[Dict]:
+    def _find_separating_aspect(
+        self,
+        chart: HoraryChart,
+        planet1: Planet,
+        planet2: Planet,
+        window_days: int,
+        max_degree: float | None = None,
+    ) -> Optional[Dict]:
         """Find a *recent* separating aspect between planet1 and planet2 within `window_days`.
         Uses the same analytic kernel as `when_exact_in_days` but solves for the last hit in the past.
         """
@@ -1114,12 +1152,15 @@ class EventDetector:
                     dt = ((target - delta) % 360.0) / (-v_rel)
 
                 if 0.0 < dt <= float(window_days):
+                    deg_from_exact = float(abs(v_rel * dt))
+                    if max_degree is not None and deg_from_exact > max_degree:
+                        continue
                     cand = {
                         'aspect': aspect,
                         'timing': -float(dt),
                         'separating': True,
                         'target': planet2,
-                        'degrees_from_exact': float(abs(v_rel * dt)),
+                        'degrees_from_exact': deg_from_exact,
                     }
                     if (best is None) or (dt < -best['timing']):  # smallest look-back
                         best = cand
