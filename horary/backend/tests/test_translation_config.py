@@ -44,17 +44,21 @@ def setup_env(monkeypatch, *, sep_timing=-1.0, app_timing=1.0,
         'target': quesited,
     }
 
-    def fake_find_separating_aspect(self, chart, p1, p2, window_days):
+    def fake_find_separating_aspect(self, chart, p1, p2, window_days, max_degree=None):
         if p1 == translator and p2 in (querent, quesited):
+            if max_degree is not None and sep_event['degrees_from_exact'] > max_degree:
+                return None
             return sep_event
         return None
 
-    def fake_find_applying_aspect(self, chart, p1, p2, window_days):
+    def fake_find_applying_aspect(self, chart, p1, p2, window_days, max_degree=None):
         if p1 == translator and p2 in (querent, quesited):
+            if max_degree is not None and app_event['degrees_to_exact'] > max_degree:
+                return None
             return app_event
         return None
 
-    def fake_find_earliest_application(self, chart, planet, window_days, exclude=None):
+    def fake_find_earliest_application(self, chart, planet, window_days, exclude=None, max_degree=None):
         return {'target': quesited, 'timing': app_timing}
 
     def fake_get_cached_reception(self, chart, p1, p2):
@@ -73,6 +77,8 @@ def setup_env(monkeypatch, *, sep_timing=-1.0, app_timing=1.0,
     ed.config.translation.require_proper_sequence = require_proper_sequence
     ed.config.translation.max_separation_deg = 10.0
     ed.config.translation.max_application_deg = 15.0
+
+    ed.timing = SimpleNamespace(_get_daily_motion=lambda pos: getattr(pos, 'daily_motion', 0))
 
     chart = SimpleNamespace(planets={
         translator: SimpleNamespace(daily_motion=1.0),
