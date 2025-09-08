@@ -208,23 +208,6 @@ class EventDetector:
         self.config = cfg()
         self.reception_cache: Dict[str, Dict] = {}
     
-    def _get_daily_motion(self, planet_pos) -> float:
-        """Get daily motion with fallback to speed attribute"""
-        if not planet_pos:
-            return 0.0
-        
-        # Try daily_motion first
-        daily_motion = getattr(planet_pos, 'daily_motion', None)
-        if daily_motion is not None:
-            return daily_motion
-        
-        # Fall back to speed attribute
-        speed = getattr(planet_pos, 'speed', None)
-        if speed is not None:
-            return speed
-            
-        return 0.0
-
     # Bridge helper to reuse TimingKernel's direct route computation
     def _current_direct_route(self, chart: HoraryChart, querent: Planet, quesited: Planet, window_days: int):
         """Delegate to TimingKernel to determine earliest direct route with applier/receiver."""
@@ -400,9 +383,9 @@ class EventDetector:
                     tr_pos = chart.planets.get(translator)
                     q_pos = chart.planets.get(querent)
                     qe_pos = chart.planets.get(quesited)
-                    tr_sp = abs(self._get_daily_motion(tr_pos))
-                    q_sp = abs(self._get_daily_motion(q_pos))
-                    qe_sp = abs(self._get_daily_motion(qe_pos))
+                    tr_sp = abs(self.timing._get_daily_motion(tr_pos))
+                    q_sp = abs(self.timing._get_daily_motion(q_pos))
+                    qe_sp = abs(self.timing._get_daily_motion(qe_pos))
                     if getattr(self.config.translation, "require_speed_advantage", True):
                         if not (tr_sp > q_sp and tr_sp > qe_sp):
                             continue
@@ -694,7 +677,7 @@ class EventDetector:
                 return None
             
             # Get daily motion
-            daily_motion = self._get_daily_motion(planet_pos)
+            daily_motion = self.timing._get_daily_motion(planet_pos)
             
             # Compute future longitude
             future_lon = (current_lon + daily_motion * future_days) % 360
@@ -773,7 +756,7 @@ class EventDetector:
             app = self._find_applying_aspect(chart, p, receiver, window_days)
             if not app or not (0 < app['timing'] < threshold - EPS):
                 continue
-            if abs(self._get_daily_motion(chart.planets.get(p))) <= abs(self._get_daily_motion(chart.planets.get(receiver))):
+            if abs(self.timing._get_daily_motion(chart.planets.get(p))) <= abs(self.timing._get_daily_motion(chart.planets.get(receiver))):
                 continue
             nxt = self._find_earliest_application(chart, p, window_days, exclude={receiver})
             if nxt and abs(nxt['timing'] - app['timing']) <= EPS and nxt['target'] == applier:
@@ -805,7 +788,7 @@ class EventDetector:
                 querent_pos = chart.planets[querent]
                 quesited_pos = chart.planets[quesited]
                 
-                if (self._get_daily_motion(querent_pos) > 0 and 
+                if (self.timing._get_daily_motion(querent_pos) > 0 and
                     self._will_station_before(chart, querent, timing)):
                     events.append(PerfectionEvent(
                         event_type=EventType.REFRANATION,
@@ -818,7 +801,7 @@ class EventDetector:
                         metadata={'refraning_planet': querent}
                     ))
                 
-                if (self._get_daily_motion(quesited_pos) > 0 and 
+                if (self.timing._get_daily_motion(quesited_pos) > 0 and
                     self._will_station_before(chart, quesited, timing)):
                     events.append(PerfectionEvent(
                         event_type=EventType.REFRANATION,
@@ -850,7 +833,7 @@ class EventDetector:
             app = self._find_applying_aspect(chart, p, applier, window_days)
             if not app or not (0 < app['timing'] < t_direct - EPS):
                 continue
-            if abs(self._get_daily_motion(chart.planets.get(p))) <= abs(self._get_daily_motion(chart.planets.get(applier))):
+            if abs(self.timing._get_daily_motion(chart.planets.get(p))) <= abs(self.timing._get_daily_motion(chart.planets.get(applier))):
                 continue
             nxt = self._find_earliest_application(chart, p, window_days, exclude={applier})
             if nxt and abs(nxt['timing'] - app['timing']) <= EPS and nxt['target'] == receiver:
@@ -1060,7 +1043,7 @@ class EventDetector:
             return None
 
         delta = (getattr(pos2, 'longitude', 0.0) - getattr(pos1, 'longitude', 0.0)) % 360.0
-        v_rel = self._get_daily_motion(pos2) - self._get_daily_motion(pos1)
+        v_rel = self.timing._get_daily_motion(pos2) - self.timing._get_daily_motion(pos1)
         if abs(v_rel) < 1e-6:
             return None
 
@@ -1098,9 +1081,9 @@ class EventDetector:
         sig1_pos = chart.planets[sig1] 
         sig2_pos = chart.planets[sig2]
         
-        collector_speed = abs(self._get_daily_motion(collector_pos))
-        sig1_speed = abs(self._get_daily_motion(sig1_pos))
-        sig2_speed = abs(self._get_daily_motion(sig2_pos))
+        collector_speed = abs(self.timing._get_daily_motion(collector_pos))
+        sig1_speed = abs(self.timing._get_daily_motion(sig1_pos))
+        sig2_speed = abs(self.timing._get_daily_motion(sig2_pos))
         
         return collector_speed < min(sig1_speed, sig2_speed)
     
@@ -1110,7 +1093,7 @@ class EventDetector:
         if not pos:
             return False
             
-        current_speed = self._get_daily_motion(pos)
+        current_speed = self.timing._get_daily_motion(pos)
         
         # Only check for direct planets that might turn retrograde
         if current_speed <= 0:
