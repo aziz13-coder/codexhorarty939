@@ -61,7 +61,7 @@ class TraditionalReceptionCalculator:
         # Determine day/night for triplicity calculations
         sun_pos = chart.planets[Planet.SUN]
         sun_house = self._calculate_house_position(sun_pos.longitude, chart.houses)
-        is_day = sun_house in [7, 8, 9, 10, 11, 12]  # Sun below horizon = day chart
+        is_day = sun_house in [7, 8, 9, 10, 11, 12]  # Sun above horizon = day chart
 
         # Check all dignity types for both directions
         reception_1_to_2 = self._check_all_dignities(planet1, pos2, is_day)
@@ -395,7 +395,10 @@ class TraditionalReceptionCalculator:
         return f"{receiving.value} receives {received.value} by {dignity_label}"
 
     def _calculate_house_position(self, longitude: float, houses: List[float]) -> int:
-        """Helper method for house calculation"""
+        """Return house index with horizon orientation.
+
+        Houses 7-12 are above the horizon (day); houses 1-6 lie below (night).
+        """
         longitude = longitude % 360
 
         for i in range(12):
