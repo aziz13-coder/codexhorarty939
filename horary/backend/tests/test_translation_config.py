@@ -26,7 +26,7 @@ from models import Planet, Aspect
 def setup_env(monkeypatch, *, sep_timing=-1.0, app_timing=1.0,
               sep_deg=5.0, app_deg=5.0,
               require_reception=False, require_proper_sequence=True,
-              reception=False):
+              reception=False, app_aspect=Aspect.SEXTILE):
     translator = Planet.MERCURY
     querent = Planet.SUN
     quesited = Planet.MARS
@@ -38,7 +38,7 @@ def setup_env(monkeypatch, *, sep_timing=-1.0, app_timing=1.0,
         'target': querent,
     }
     app_event = {
-        'aspect': Aspect.SEXTILE,
+        'aspect': app_aspect,
         'timing': app_timing,
         'degrees_to_exact': app_deg,
         'target': quesited,
@@ -64,7 +64,7 @@ def setup_env(monkeypatch, *, sep_timing=-1.0, app_timing=1.0,
     def fake_get_cached_reception(self, chart, p1, p2):
         if reception and p1 == translator:
             return {'mutual': 'mixed_reception', 'one_way': ['x'], 'type': 'mixed_reception'}
-        return {'mutual': 'none', 'one_way': [], 'type': 'none'}
+        return {'mutual': None, 'one_way': [], 'type': 'none'}
 
     monkeypatch.setattr(EventDetector, '_find_separating_aspect', fake_find_separating_aspect)
     monkeypatch.setattr(EventDetector, '_find_applying_aspect', fake_find_applying_aspect)
@@ -116,3 +116,14 @@ def test_translation_max_separation_deg_boundary(monkeypatch, sep_deg, expected)
 def test_translation_max_application_deg_boundary(monkeypatch, app_deg, expected):
     ed, chart, q, e = setup_env(monkeypatch, app_deg=app_deg)
     assert len(ed._detect_translation_events(chart, q, e, 30)) == expected
+
+
+def test_translation_max_lookback_days(monkeypatch):
+    ed, chart, q, e = setup_env(monkeypatch, sep_timing=-10.0, app_aspect=Aspect.SQUARE)
+    ed.config.translation_max_lookback_days = 7
+    assert not ed._detect_translation_events(chart, q, e, 30)
+
+    ed, chart, q, e = setup_env(monkeypatch, sep_timing=-10.0, app_aspect=Aspect.SQUARE)
+    ed.config.translation_max_lookback_days = 15
+    assert len(ed._detect_translation_events(chart, q, e, 30)) == 1
+
