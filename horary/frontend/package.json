@@ -1,0 +1,186 @@
+{
+  "name": "vox-stella",
+  "private": true,
+  "version": "1.1.0",
+  "homepage": "./",
+  "description": "Vox Stella - Traditional Horary Astrology Application",
+  "main": "main.js",
+  "scripts": {
+    "dev": "vite --mode development",
+    "dev:backend": "cd ../backend && python app.py",
+    "build": "vite build",
+    "clean": "rimraf dist node_modules/.vite",
+    "clean:build": "node scripts/clean-build.js",
+    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --ext js,jsx --fix",
+    "preview": "vite preview",
+    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000\" \"electron .\"",
+    "electron": "electron .",
+    "electron:build": "npm run build && electron-builder",
+    "electron:build:win": "npm run build && electron-builder --win",
+    "electron:build:win-store": "npm run build && electron-builder --win --publish=never",
+    "electron:pack": "npm run build && electron-builder --dir",
+    "start-backend": "cd ../backend && python app.py",
+    "prepare-backend": "node scripts/prepare-backend.js",
+    "build-backend-exe": "cd ../backend && python build_backend.py",
+    "build:production": "npm run clean:build && npm run build && npm run build-backend-exe && npm run prepare-backend && npm run electron:build:win-store",
+    "test:communication": "node test-communication.js",
+    "test:packaging": "npm run build && npm run build-backend-exe && npm run prepare-backend && npm run electron:pack && npm run test:communication",
+    "package:working-exe": "node scripts/package-working-exe.js",
+    "fix-and-package": "node scripts/fix-and-package.js",
+    "build:appx-from-working": "npm run build && npm run build-backend-exe && npm run electron:pack && npm run fix-and-package",
+    "validate:icons": "node validate-icons.js",
+    "prebuild": "npm run validate:icons",
+    "test": "node tests/parseReasoning.test.mjs && node tests/useReasoningFlag.test.mjs"
+  },
+  "dependencies": {
+    "electron-log": "^5.1.4",
+    "electron-updater": "^6.1.8",
+    "lucide-react": "^0.263.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tweetnacl": "^1.0.3"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.7",
+    "@vitejs/plugin-react": "^4.0.3",
+    "autoprefixer": "^10.4.14",
+    "eslint": "^8.45.0",
+    "eslint-plugin-react": "^7.32.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.3",
+    "postcss": "^8.4.27",
+    "rimraf": "^5.0.1",
+    "tailwindcss": "^3.3.3",
+    "vite": "^4.4.5",
+    "wait-on": "^7.0.1",
+    "electron": "^28.1.0",
+    "electron-builder": "^24.6.4",
+    "concurrently": "^8.2.0"
+  },
+  "author": {
+    "name": "Vox Stella Team",
+    "email": "support@voxstella.com",
+    "url": "https://voxstella.com"
+  },
+  "license": "Commercial",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voxstella/vox-stella.git"
+  },
+  "bugs": {
+    "url": "https://github.com/voxstella/vox-stella/issues"
+  },
+  "keywords": [
+    "astrology",
+    "horary",
+    "traditional",
+    "divination"
+  ],
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "build": {
+    "appId": "com.voxstella.app",
+    "productName": "Vox Stella",
+    "copyright": "Copyright © 2025 Vox Stella Team",
+    "directories": {
+      "buildResources": "build-resources",
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "main.js",
+      "main/**/*",
+      "preload.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend",
+        "to": "backend",
+        "filter": [
+          "**/*",
+          "!__pycache__/**/*",
+          "!*.pyc",
+          "!.env",
+          "!horary_api.log",
+          "!*.log*",
+          "!build/**/*",
+          "!*.spec",
+          "!dist/**/*",
+          "!venv/**/*"
+        ]
+      },
+      {
+        "from": "backend",
+        "to": "backend",
+        "filter": [
+          "horary_backend.exe",
+          "horary_backend"
+        ]
+      }
+    ],
+    "asarUnpack": [
+      "**/backend/**/*"
+    ],
+    "icon": "assets/icon.ico",
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "appx",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "publisherName": "Vox Stella Team",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "mac": {
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "icon": "assets/icon.png",
+      "category": "Office"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Vox Stella",
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico"
+    },
+    "appx": {
+      "applicationId": "VoxStella",
+      "backgroundColor": "#1e1e2e",
+      "displayName": "Vox Stella",
+      "identityName": "VoxStella",
+      "publisher": "CN=Vox Stella Team",
+      "publisherDisplayName": "Vox Stella Team",
+      "languages": ["en-US"],
+      "addAutoLaunchExtension": false,
+      "showNameOnTiles": true,
+      "setBuildNumber": true
+    },
+    "publish": {
+      "provider": "generic",
+      "url": "https://updates.sandbox.voxstella.local/vox-stella/"
+    },
+    "compression": "normal",
+    "buildDependenciesFromSource": false,
+    "nodeGypRebuild": false,
+    "buildVersion": "1.1.0"
+  }
+}

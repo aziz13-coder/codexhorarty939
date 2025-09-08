@@ -1,0 +1,149 @@
+rules:
+  - id: V1
+    tier: validity_gates
+    description: Early Ascendant
+    weight: -2.0
+  - id: V2
+    tier: validity_gates
+    description: Late Ascendant
+    weight: -2.0
+  - id: H1
+    tier: hard_stoppers
+    description: Saturn in 7th
+    weight: -3.0
+  - id: H2
+    tier: hard_stoppers
+    description: Void of Course
+    weight: -3.0
+  - id: P1
+    tier: perfection
+    description: Direct perfection
+    weight: 2.0
+  - id: P2
+    tier: perfection
+    description: Translation of light
+    weight: 2.0
+  - id: P2_NEG
+    tier: perfection
+    description: Translation of light (negative)
+    weight: -2.0
+  - id: S1
+    tier: special_topics
+    description: Education overrides
+    weight: 1.5
+  - id: S2
+    tier: special_topics
+    description: Medical exceptions
+    weight: 1.5
+  - id: S3
+    tier: special_topics
+    description: Mutual reception between L7 and Mercury
+    weight: 1.5
+  - id: S4
+    tier: special_topics
+    description: L7 imminent sign change
+    weight: 1.2
+  - id: M1
+    tier: moon
+    description: Moon trine Sun
+    weight: 1.8
+  - id: M2
+    tier: moon
+    description: Moon square Saturn
+    weight: -2.2
+  - id: MOD1
+    tier: modifiers
+    description: Reception boost
+    weight: 1.2
+  - id: MOD2
+    tier: modifiers
+    description: Debility penalty
+    weight: -1.5
+  - id: MOD3
+    tier: modifiers
+    description: Retrograde penalty
+    weight: -1.5
+  - id: T1
+    tier: thresholds
+    description: Dignity threshold
+    weight: 1.0
+  - id: T2
+    tier: thresholds
+    description: Speed threshold
+    weight: -1.0
+  - id: M3
+    tier: moon
+    description: Moon square Sun
+    weight: -1.0
+  - id: M4
+    tier: moon
+    description: Moon sextile Sun
+    weight: 1.0
+  - id: M5
+    tier: moon
+    description: Moon sextile L1
+    weight: 1.0
+  - id: M6
+    tier: moon
+    description: Moon sextile L7
+    weight: 1.0
+  - id: M7
+    tier: moon
+    description: Moon opposition Sun
+    weight: -1.0
+  - id: M8
+    tier: moon
+    description: Moon opposition L1
+    weight: -1.0
+  - id: M9
+    tier: moon
+    description: Moon opposition L7
+    weight: -1.0
+  - id: P3
+    tier: perfection
+    description: Collection of light
+    weight: 2.0
+  - id: P3_NEG
+    tier: perfection
+    description: Collection of light (negative)
+    weight: -2.0
+  - id: P4
+    tier: perfection
+    description: Moon applying to Mercury
+    weight: 1.5
+  - id: LC1
+    tier: testimonies
+    description: L10 fortunate
+    weight: 1.0
+  - id: LC2
+    tier: testimonies
+    description: L7 fortunate
+    weight: 1.0
+  - id: LC3
+    tier: testimonies
+    description: L7 malefic debility
+    weight: -1.0
+  - id: LC4
+    tier: testimonies
+    description: L2 fortunate
+    weight: 1.0
+  - id: LC5
+    tier: testimonies
+    description: L2 malefic debility
+    weight: -1.0
+  - id: LC6
+    tier: testimonies
+    description: L8 fortunate
+    weight: 1.0
+  - id: LC7
+    tier: testimonies
+    description: L8 malefic debility
+    weight: -1.0
+  - id: LC8
+    tier: testimonies
+    description: L5 fortunate
+    weight: 1.0
+  - id: LC9
+    tier: testimonies
+    description: L5 malefic debility
+    weight: -1.0

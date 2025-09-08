@@ -1,0 +1,541 @@
+# Horary Astrology Engine Configuration
+# All timing, orbs, and confidence values for traditional horary judgment
+
+aggregator:
+  # Defaults to the new DSL-based aggregator. Set the HORARY_USE_DSL
+  # environment variable to "false" to fall back to the legacy aggregation
+  # logic without editing this file.
+  use_dsl: true
+  role_importance:
+    L1: 1.0   # Querent significator
+    LQ: 1.0   # Quesited significator
+    Moon: 0.7 # Baseline weight for the Moon
+    L10: 1.0  # Tenth house/examiner significator
+    L3: 1.0   # Third house/messenger significator
+
+timing:
+  # Timing calculation parameters
+  default_moon_speed_fallback: 13.0  # degrees per day (only if ephemeris fails)
+  timing_precision_days: 0.1  # minimum timing increment
+  max_future_days: 365  # maximum days to look ahead for aspects/stations
+  max_horary_days: 30   # maximum days considered valid for horary perfection
+  
+  # Timeframe support
+  default_window_days: 365   # Default window when no timeframe specified
+  max_window_days: 365       # Maximum allowed window for future perfection
+  
+  # Planetary motion thresholds
+  stationary_speed_threshold: 0.01  # degrees/day to consider stationary
+  slow_moon_threshold: 11.0  # degrees/day (Moon considered slow)
+  fast_moon_threshold: 15.0  # degrees/day (Moon considered fast)
+
+  # Confidence decay based on time to perfection
+  decay:
+    medium_threshold_days: 30
+    medium_factor: 0.8
+    long_threshold_days: 90
+    long_factor: 0.6
+
+orbs:
+  # Traditional aspect orbs (degrees)
+  conjunction: 8.0
+  sextile: 6.0
+  square: 8.0
+  trine: 8.0
+  opposition: 8.0
+  
+  # Traditional planetary orbs (degrees). Moiety-based calculations use half of these.
+  # Default moiety values:
+  #   Sun 15°, Moon 12°, Saturn/Jupiter 9°, Mars 7.5°, Venus 7.5°, Mercury 7°
+  moieties:
+    Sun: 15.0
+    Moon: 12.0
+    Mercury: 7.0
+    Venus: 7.5
+    Mars: 7.5
+    Jupiter: 9.0
+    Saturn: 9.0
+  
+  # Luminary orb bonuses
+  sun_orb_bonus: 1.0
+  moon_orb_bonus: 8.0  # Traditional horary allows much wider orbs for Moon translation
+  
+  # Solar condition orbs
+  cazimi_orb_arcmin: 17  # arcminutes
+  combustion_orb: 8.5    # degrees
+  under_beams_orb: 15.0  # degrees
+
+moon:
+  # Moon testimony and accidental dignity modifiers
+  phase_bonus:
+    new_moon: -2      # 0-30° from Sun
+    waxing_crescent: 1 # 30-60° from Sun  
+    first_quarter: 2  # 60-120° from Sun
+    waxing_gibbous: 3 # 120-150° from Sun
+    full_moon: 4      # 150-210° from Sun
+    waning_gibbous: 2 # 210-240° from Sun
+    last_quarter: 0   # 240-300° from Sun
+    waning_crescent: -1 # 300-360° from Sun
+  
+  speed_bonus:
+    very_slow: -2     # < 11°/day
+    slow: -1         # 11-12°/day
+    average: 0       # 12-14°/day  
+    fast: 1          # 14-15°/day
+    very_fast: 2     # > 15°/day
+  
+  angularity_bonus:
+    angular: 2       # Houses 1, 4, 7, 10
+    succedent: 0     # Houses 2, 5, 8, 11
+    cadent: -1       # Houses 3, 6, 9, 12
+  
+  # Void-of-course configuration - GROUND TRUTH IMPLEMENTATION
+  # Moon is void if it will not apply to any classical planet by Ptolemaic aspect
+  # within permitted orb before leaving its current sign. NO EXCEPTIONS.
+  void_gating: false  # R26 gating disabled in favor of confidence penalty
+  void_penalty: 10    # Confidence penalty applied when Moon is void-of-course
+
+  # Out-of-sign applications are ignored; cross-sign perfection is disallowed
+
+perfection:
+  require_in_sign: true
+  allow_out_of_sign: false
+
+# Sign-exit guard configuration for perfection_core.py timing kernel
+allow_out_of_sign_hits: false
+debug_sign_exit_guard: true
+houses:
+  system: Regiomontanus
+  system_code: "R"
+
+# Translation and collection requirements
+translation:
+  require_speed_advantage: true  # Translator must be faster than significators
+  require_proper_sequence: true   # Must separate then apply
+  require_reception: false        # Reception not mandatory
+  max_separation_deg: 10.0        # Maximum degrees past exact for separating aspect
+  max_application_deg: 15.0       # Maximum degrees to exact for applying aspect
+
+collection:
+  require_collector_dignity: true # Collector should be dignified
+  minimum_dignity_score: 0       # Minimum dignity for valid collection
+
+confidence:
+  # Base confidence levels
+  base_confidence: 100
+  
+  # Perfection confidence by type
+  perfection:
+    direct_with_mutual_rulership: 95
+    direct_with_mutual_exaltation: 85
+    direct_basic: 80
+    direct_penalized: 55  # Hard aspects reduce confidence but still give YES verdict
+    translation_of_light: 75
+    collection_of_light: 70
+    reception_only: 65
+    # Hard aspect penalties
+    hard_square_penalty: 15
+    hard_opposition_penalty: 20
+  
+  # Denial confidence levels  
+  denial:
+    frustration: 85
+    frustration_retrograde: 75    # configurable instead of automatic NO
+    refranation: 80
+    abscission: 70
+    no_perfection: 85            # FIXED: No significator perfection = NO judgment
+  
+  # Lunar testimony confidence caps
+  lunar_confidence_caps:
+    favorable: 80
+    unfavorable: 85
+    neutral: 50
+  
+  # Moon house-specific bonuses
+  moon:
+    to_house_10_bonus: 8         # Bonus when Moon aspects L10 ruler favorably
+    to_house_10_cap_lift: 5      # Raise favorable cap from 80 → 85 when Moon → L10 harmoniously
+
+  # Solar condition modifiers
+  solar:
+    cazimi_bonus: 15
+    exact_cazimi_bonus: 20
+    combustion_penalty: 10
+    under_beams_penalty: 5
+  
+  # Reception confidence modifiers  
+  reception:
+    mutual_rulership_bonus: 15
+    mutual_exaltation_bonus: 10  # configurable boost
+    mixed_reception_bonus: 9  # FIXED: Mercury↔Venus mutual reception by sign should be +9
+    one_way_bonus: 3
+    # Hard aspect mitigation by reception
+    soften_hard_by_mixed: 8
+    soften_hard_by_one_way: 5
+
+debilitation_penalties:
+  dignity_threshold: -4
+  l2: 15
+  l4: 15
+  l11: 15
+  cadent_significator: 5
+
+radicality:
+  # Radicality checking parameters
+  gating: false  # R1 gating disabled in favor of confidence penalty
+  asc_too_early: 3.0    # degrees
+  asc_too_late: 27.0    # degrees
+  saturn_7th_enabled: true  # check Saturn in 7th
+  via_combusta_enabled: true # check Moon in Via Combusta
+  hour_agreement_enabled: false # check planetary hour agreement
+  hour_agreement_mode: "ruler"  # options: ruler, sign, triplicity
+  asc_warning_penalty: 15  # Confidence penalty for early or late Ascendant warnings
+
+  via_combusta:
+    libra_start: 15.0    # degrees into Libra
+    scorpio_end: 15.0    # degrees into Scorpio (via combusta ends here)
+
+# Dignity scoring weights
+dignity:
+  rulership: 5
+  exaltation: 4
+  triplicity: 3          # NEW: Traditional triplicity rulers
+  detriment: -5
+  fall: -4
+  joy: 2
+  angular: 1
+  succedent: 0
+  cadent: -1
+  
+  # Advanced traditional factors
+  speed_bonus: 1         # Fast planets bonus
+  speed_penalty: -1      # Slow/stationary planets penalty
+  hayz_bonus: 2          # Proper sect bonus
+  hayz_penalty: -1       # Wrong sect penalty
+
+# Retrograde handling
+retrograde:
+  automatic_denial: false  # Don't automatically deny for retrograde
+  dignity_penalty: -2     # Penalty for retrograde significator
+  frustration_penalty: -5 # Additional penalty for retrograde frustration
+  quesited_penalty: 12    # Confidence penalty for retrograde quesited (mitigable)
+
+solar:
+  severe_impediment_denial_enabled: false  # R17b toggle for severe combustion denial
+
+reception:
+  terms:
+    Aries:
+      - ruler: Jupiter
+        start: 0
+        end: 6
+      - ruler: Venus
+        start: 6
+        end: 12
+      - ruler: Mercury
+        start: 12
+        end: 20
+      - ruler: Mars
+        start: 20
+        end: 25
+      - ruler: Saturn
+        start: 25
+        end: 30
+    Taurus:
+      - ruler: Venus
+        start: 0
+        end: 8
+      - ruler: Mercury
+        start: 8
+        end: 14
+      - ruler: Jupiter
+        start: 14
+        end: 22
+      - ruler: Saturn
+        start: 22
+        end: 27
+      - ruler: Mars
+        start: 27
+        end: 30
+    Gemini:
+      - ruler: Mercury
+        start: 0
+        end: 6
+      - ruler: Jupiter
+        start: 6
+        end: 12
+      - ruler: Venus
+        start: 12
+        end: 17
+      - ruler: Mars
+        start: 17
+        end: 24
+      - ruler: Saturn
+        start: 24
+        end: 30
+    Cancer:
+      - ruler: Mars
+        start: 0
+        end: 7
+      - ruler: Venus
+        start: 7
+        end: 13
+      - ruler: Mercury
+        start: 13
+        end: 19
+      - ruler: Jupiter
+        start: 19
+        end: 26
+      - ruler: Saturn
+        start: 26
+        end: 30
+    Leo:
+      - ruler: Jupiter
+        start: 0
+        end: 6
+      - ruler: Venus
+        start: 6
+        end: 11
+      - ruler: Saturn
+        start: 11
+        end: 18
+      - ruler: Mercury
+        start: 18
+        end: 24
+      - ruler: Mars
+        start: 24
+        end: 30
+    Virgo:
+      - ruler: Mercury
+        start: 0
+        end: 7
+      - ruler: Venus
+        start: 7
+        end: 17
+      - ruler: Jupiter
+        start: 17
+        end: 21
+      - ruler: Mars
+        start: 21
+        end: 28
+      - ruler: Saturn
+        start: 28
+        end: 30
+    Libra:
+      - ruler: Saturn
+        start: 0
+        end: 6
+      - ruler: Mercury
+        start: 6
+        end: 14
+      - ruler: Jupiter
+        start: 14
+        end: 21
+      - ruler: Venus
+        start: 21
+        end: 28
+      - ruler: Mars
+        start: 28
+        end: 30
+    Scorpio:
+      - ruler: Mars
+        start: 0
+        end: 7
+      - ruler: Venus
+        start: 7
+        end: 11
+      - ruler: Mercury
+        start: 11
+        end: 19
+      - ruler: Jupiter
+        start: 19
+        end: 24
+      - ruler: Saturn
+        start: 24
+        end: 30
+    Sagittarius:
+      - ruler: Jupiter
+        start: 0
+        end: 12
+      - ruler: Venus
+        start: 12
+        end: 17
+      - ruler: Mercury
+        start: 17
+        end: 21
+      - ruler: Saturn
+        start: 21
+        end: 26
+      - ruler: Mars
+        start: 26
+        end: 30
+    Capricorn:
+      - ruler: Mercury
+        start: 0
+        end: 7
+      - ruler: Jupiter
+        start: 7
+        end: 14
+      - ruler: Venus
+        start: 14
+        end: 22
+      - ruler: Saturn
+        start: 22
+        end: 26
+      - ruler: Mars
+        start: 26
+        end: 30
+    Aquarius:
+      - ruler: Mercury
+        start: 0
+        end: 7
+      - ruler: Venus
+        start: 7
+        end: 13
+      - ruler: Jupiter
+        start: 13
+        end: 20
+      - ruler: Mars
+        start: 20
+        end: 25
+      - ruler: Saturn
+        start: 25
+        end: 30
+    Pisces:
+      - ruler: Venus
+        start: 0
+        end: 12
+      - ruler: Jupiter
+        start: 12
+        end: 16
+      - ruler: Mercury
+        start: 16
+        end: 19
+      - ruler: Mars
+        start: 19
+        end: 28
+      - ruler: Saturn
+        start: 28
+        end: 30
+
+  faces:
+    Aries:
+      - ruler: Mars
+        start: 0
+        end: 10
+      - ruler: Sun
+        start: 10
+        end: 20
+      - ruler: Venus
+        start: 20
+        end: 30
+    Taurus:
+      - ruler: Mercury
+        start: 0
+        end: 10
+      - ruler: Moon
+        start: 10
+        end: 20
+      - ruler: Saturn
+        start: 20
+        end: 30
+    Gemini:
+      - ruler: Jupiter
+        start: 0
+        end: 10
+      - ruler: Mars
+        start: 10
+        end: 20
+      - ruler: Sun
+        start: 20
+        end: 30
+    Cancer:
+      - ruler: Venus
+        start: 0
+        end: 10
+      - ruler: Mercury
+        start: 10
+        end: 20
+      - ruler: Moon
+        start: 20
+        end: 30
+    Leo:
+      - ruler: Saturn
+        start: 0
+        end: 10
+      - ruler: Jupiter
+        start: 10
+        end: 20
+      - ruler: Mars
+        start: 20
+        end: 30
+    Virgo:
+      - ruler: Sun
+        start: 0
+        end: 10
+      - ruler: Venus
+        start: 10
+        end: 20
+      - ruler: Mercury
+        start: 20
+        end: 30
+    Libra:
+      - ruler: Moon
+        start: 0
+        end: 10
+      - ruler: Saturn
+        start: 10
+        end: 20
+      - ruler: Jupiter
+        start: 20
+        end: 30
+    Scorpio:
+      - ruler: Mars
+        start: 0
+        end: 10
+      - ruler: Sun
+        start: 10
+        end: 20
+      - ruler: Venus
+        start: 20
+        end: 30
+    Sagittarius:
+      - ruler: Mercury
+        start: 0
+        end: 10
+      - ruler: Moon
+        start: 10
+        end: 20
+      - ruler: Saturn
+        start: 20
+        end: 30
+    Capricorn:
+      - ruler: Jupiter
+        start: 0
+        end: 10
+      - ruler: Mars
+        start: 10
+        end: 20
+      - ruler: Sun
+        start: 20
+        end: 30
+    Aquarius:
+      - ruler: Venus
+        start: 0
+        end: 10
+      - ruler: Mercury
+        start: 10
+        end: 20
+      - ruler: Moon
+        start: 20
+        end: 30
+    Pisces:
+      - ruler: Saturn
+        start: 0
+        end: 10
+      - ruler: Jupiter
+        start: 10
+        end: 20
+      - ruler: Mars
+        start: 20
+        end: 30
