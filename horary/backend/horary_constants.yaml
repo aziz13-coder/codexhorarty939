@@ -116,6 +116,9 @@ translation:
   max_separation_deg: 10.0        # Maximum degrees past exact for separating aspect
   max_application_deg: 15.0       # Maximum degrees to exact for applying aspect
 
+# Maximum days allowed between separation and translation completion
+translation_max_lookback_days: 7
+
 collection:
   require_collector_dignity: true # Collector should be dignified
   minimum_dignity_score: 0       # Minimum dignity for valid collection

@@ -135,7 +135,8 @@ class HoraryConfig:
             'confidence.lunar_confidence_caps.favorable',
             'confidence.lunar_confidence_caps.unfavorable',
             'radicality.asc_too_early',
-            'radicality.asc_too_late'
+            'radicality.asc_too_late',
+            'translation_max_lookback_days'
         ]
         
         missing_keys = []
