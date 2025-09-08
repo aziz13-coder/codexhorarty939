@@ -1295,10 +1295,10 @@ class EnhancedTraditionalAstrologicalCalculator:
         if sign not in triplicity_rulers:
             return 0
             
-        # Determine if it's day or night (Sun above or below horizon)
-        # Day = Sun in houses 7-12 (below horizon), Night = Sun in houses 1-6 (above horizon)
+        # Determine if it's day or night based on Sun's position relative to the horizon
+        # Day = Sun in houses 7-12 (above horizon), Night = Sun in houses 1-6 (below horizon)
         sun_house = sun_pos.house
-        is_day = sun_house in [7, 8, 9, 10, 11, 12]  # Houses below horizon = day
+        is_day = sun_house in [7, 8, 9, 10, 11, 12]  # Sun above horizon = day chart
         sect = "day" if is_day else "night"
         
         if triplicity_rulers[sign][sect] == planet:
@@ -1333,7 +1333,7 @@ class EnhancedTraditionalAstrologicalCalculator:
         
         # Determine if Sun is above horizon (day) or below (night)
         sun_house = self._calculate_house_position(sun_pos.longitude, houses)
-        is_day = sun_house in [7, 8, 9, 10, 11, 12]  # Houses below horizon = day
+        is_day = sun_house in [7, 8, 9, 10, 11, 12]  # Sun above horizon = day chart
         
         # Traditional sect assignments
         diurnal_planets = [Planet.SUN, Planet.JUPITER, Planet.SATURN]  
@@ -1432,7 +1432,10 @@ class EnhancedTraditionalAstrologicalCalculator:
         return Sign.PISCES
     
     def _calculate_house_position(self, longitude: float, houses: List[float]) -> int:
-        """Calculate house position"""
+        """Return house index with horizon orientation.
+
+        Houses 7-12 are above the horizon (day); houses 1-6 lie below (night).
+        """
         longitude = longitude % 360
         
         for i in range(12):
