@@ -601,9 +601,22 @@ class EventDetector:
                         confidence = max(confidence - 15, 25)
                     challenges = [] if favorable else ["weak_reception_to_collector"]
 
+                    # Collector dignity gating
+                    c_cfg = getattr(self.config, "collection", SimpleNamespace())
+                    min_dig = getattr(c_cfg, "minimum_dignity_score", 0)
+                    require_dig = getattr(c_cfg, "require_collector_dignity", False)
+                    col_pos = chart.planets.get(collector)
+                    col_dig = getattr(col_pos, "dignity_score", 0) if col_pos else 0
+                    if col_dig < min_dig:
+                        if require_dig:
+                            continue
+                        favorable = False
+                        confidence = max(confidence - 15, 25)
+                        challenges.append("collector_poor_dignity")
+
                     events.append(PerfectionEvent(
                         event_type=EventType.COLLECTION,
-                        primary_pair=(querent, quesited), 
+                        primary_pair=(querent, quesited),
                         mediator=collector,
                         exact_in_days=collection_time,
                         favorable=favorable,
